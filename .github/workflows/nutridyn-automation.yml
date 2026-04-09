@@ -34,6 +34,17 @@ jobs:
           java-version: '21'
           cache: maven
 
+      # Fail fast if the repo still has a stub pom (literal "..." line breaks Maven)
+      - name: Verify pom.xml is complete
+        run: |
+          echo "=== pom.xml first 25 lines (what the runner actually checked out) ==="
+          sed -n '1,25p' pom.xml
+          if grep -nE '^[[:space:]]*\.\.\.[[:space:]]*$' pom.xml; then
+            echo "::error::pom.xml contains a standalone '...' line — invalid XML. Push the real pom.xml from your machine (see repo root pom.xml)."
+            exit 1
+          fi
+          mvn -q validate -N
+
       # 3. Install Google Chrome (latest stable)
       - name: Install Google Chrome
         run: |
