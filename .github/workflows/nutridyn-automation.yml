@@ -1,0 +1,87 @@
+name: NutriDyn Automation
+
+# ── When to run ──────────────────────────────────────────────────────────────
+on:
+  # Scheduled run — every weekday at 8:00 AM UTC (1:30 PM IST)
+  schedule:
+    - cron: '0 8 * * 1-5'
+
+  # Also allow manual trigger from the GitHub Actions UI
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Reason for manual run (optional)'
+        required: false
+        default: 'Manual trigger'
+
+# ── Jobs ─────────────────────────────────────────────────────────────────────
+jobs:
+  nutridyn-e2e:
+    name: NutriDyn E2E Test + Email Report
+    runs-on: ubuntu-latest
+
+    steps:
+
+      # 1. Check out source code
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2. Set up Java 21 (LTS — compatible with Java 24 source, change if needed)
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      # 3. Install Google Chrome (latest stable)
+      - name: Install Google Chrome
+        run: |
+          wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | sudo apt-key add -
+          sudo sh -c 'echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" \
+            >> /etc/apt/sources.list.d/google-chrome.list'
+          sudo apt-get update -q
+          sudo apt-get install -y google-chrome-stable
+          google-chrome --version
+
+      # 4. Create output directory
+      - name: Create output directory
+        run: mkdir -p /tmp/nutridyn_output
+
+      # 5. Run the TestNG suite via Maven
+      #    All secrets/variables are injected as environment variables
+      - name: Run NutriDyn automation
+        env:
+          # Output path (GitHub Actions temp folder)
+          NUTRIDYN_OUTPUT_ROOT: /tmp/nutridyn_output
+
+          # Test credentials — stored in GitHub Secrets
+          PATIENT_EMAIL:         ${{ secrets.PATIENT_EMAIL }}
+          PATIENT_PASSWORD:      ${{ secrets.PATIENT_PASSWORD }}
+          PRACTITIONER_EMAIL:    ${{ secrets.PRACTITIONER_EMAIL }}
+          PRACTITIONER_PASSWORD: ${{ secrets.PRACTITIONER_PASSWORD }}
+
+          # Email credentials — stored in GitHub Secrets
+          GMAIL_SENDER_EMAIL:    ${{ secrets.GMAIL_SENDER_EMAIL }}
+          GMAIL_APP_PASSWORD:    ${{ secrets.GMAIL_APP_PASSWORD }}
+
+          # Email recipient — stored in GitHub Variables (not sensitive)
+          REPORT_RECIPIENT:      ${{ vars.REPORT_RECIPIENT }}
+
+          # CI flag — tells ChromeDriver to run headless
+          CI: "true"
+
+        run: |
+          mvn test \
+            -DsuiteXmlFile=src/test/resources/testng.xml \
+            --no-transfer-progress
+
+      # 6. Upload screenshots and HTML report as a GitHub Actions artifact
+      #    (downloadable from the Actions run page — useful as backup)
+      - name: Upload test report artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nutridyn-report-${{ github.run_number }}
+          path: /tmp/nutridyn_output/
+          retention-days: 30
