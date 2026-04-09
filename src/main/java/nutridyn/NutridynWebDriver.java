@@ -3,7 +3,6 @@ package nutridyn;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
-
 import java.util.HashMap;
 import java.util.Map;
 
@@ -12,10 +11,9 @@ public final class NutridynWebDriver {
     private NutridynWebDriver() {}
 
     /**
-     * Creates a ChromeDriver instance.
-     * - If the environment variable CI=true (set automatically by GitHub Actions),
-     *   headless mode is enabled so Chrome can run on a server with no display.
-     * - For local runs it opens a visible browser window as before.
+     * Creates ChromeDriver.
+     * If CI=true (GitHub Actions sets this automatically) → headless mode.
+     * Otherwise → visible browser for local runs.
      */
     public static WebDriver createChrome() {
         ChromeOptions options = new ChromeOptions();
@@ -26,7 +24,6 @@ public final class NutridynWebDriver {
         prefs.put("profile.password_manager_leak_detection", false);
         options.setExperimentalOption("prefs", prefs);
 
-        // Detect GitHub Actions (or any CI environment)
         boolean isCI = "true".equalsIgnoreCase(System.getenv("CI"));
 
         if (isCI) {
@@ -35,9 +32,12 @@ public final class NutridynWebDriver {
                 "--no-sandbox",
                 "--disable-dev-shm-usage",
                 "--disable-gpu",
-                "--window-size=1280,900"
+                "--window-size=1280,900",
+                "--disable-save-password-bubble",
+                "--password-store=basic",
+                "--disable-features=PasswordLeakDetection"
             );
-            System.out.println("🤖 CI detected — Chrome running in headless mode.");
+            System.out.println("🤖 CI mode — Chrome running headless.");
         } else {
             options.addArguments(
                 "--start-maximized",
