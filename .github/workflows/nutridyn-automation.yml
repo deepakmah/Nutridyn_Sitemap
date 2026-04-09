@@ -26,32 +26,13 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # MUST run before setup-java: cache: maven triggers Maven and parses pom.xml first — a stub pom fails there with a confusing error.
-      - name: Show pom.xml from this commit (proves what GitHub checked out)
-        run: |
-          set -e
-          echo "=== Branch / ref: ${{ github.ref }} sha: ${{ github.sha }} ==="
-          test -f pom.xml || { echo "::error::No pom.xml at repo root"; ls -la; exit 1; }
-          echo "=== Line count and checksum ==="
-          wc -l pom.xml
-          sha256sum pom.xml || shasum -a 256 pom.xml
-          echo "=== Full pom.xml (entire file) ==="
-          cat pom.xml
-          echo "=== End pom.xml ==="
-          if grep -nE '^[[:space:]]*\.\.\.[[:space:]]*$' pom.xml; then
-            echo "::error::This pom.xml still has a placeholder line containing only '...' — not valid XML. Replace it on GitHub (Commit tab → edit pom.xml) or push from your PC."
-            exit 1
-          fi
-
-      # 2. Set up Java 21 (no Maven cache until pom is stable — avoids hidden mvn parse before verify)
+      # 2. Set up Java 21 (LTS — compatible with Java 24 source, change if needed)
       - name: Set up Java
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '21'
-
-      - name: Maven validate POM
-        run: mvn -q validate -N
+          cache: maven
 
       # 3. Install Google Chrome (latest stable)
       - name: Install Google Chrome
