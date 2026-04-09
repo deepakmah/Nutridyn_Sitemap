@@ -4,21 +4,23 @@ import org.openqa.selenium.WebDriver;
 import org.testng.annotations.*;
 
 /**
- * End-to-end flow split into ordered TestNG cases.
- * After the suite finishes (pass OR fail) the HTML report is emailed automatically.
+ * End-to-end TestNG suite.
+ *
+ * Key design decisions:
+ *  • TC03 and TC04 both depend only on TC02 (login), NOT on each other —
+ *    so a sitemap timeout in TC03 does NOT cause TC04 to be skipped.
+ *  • @AfterSuite(alwaysRun=true) sends the email report even when tests fail.
  */
 public class NutridynE2ETest {
 
     private WebDriver driver;
 
     @BeforeSuite
-    public void initReportingSession() {
+    public void initReporting() {
         NutridynReporting.beginNewRun();
     }
 
-    /**
-     * Always runs after the full suite — sends the email report even if tests failed.
-     */
+    /** Always runs after the full suite — emails the report pass or fail. */
     @AfterSuite(alwaysRun = true)
     public void sendEmailReport() {
         NutridynEmailer.sendReport(
@@ -35,56 +37,57 @@ public class NutridynE2ETest {
 
     @AfterClass(alwaysRun = true)
     public void stopBrowser() {
-        if (driver != null) {
-            driver.quit();
-            driver = null;
-        }
+        if (driver != null) { driver.quit(); driver = null; }
     }
 
-    // ── Test cases ────────────────────────────────────────────────────────────
+    // ── Tests ─────────────────────────────────────────────────────────────────
 
-    @Test(description = "Open storefront and accept cookies if shown")
+    @Test(description = "Open storefront and accept cookies")
     public void TC01_openHomeAndAcceptCookies() throws Exception {
         NutridynFlow.openHomeAndAcceptCookies(driver);
     }
 
-    @Test(dependsOnMethods = "TC01_openHomeAndAcceptCookies", description = "Log in as patient")
+    @Test(dependsOnMethods = "TC01_openHomeAndAcceptCookies",
+          description = "Log in as patient")
     public void TC02_loginPatient() throws Exception {
         NutridynFlow.loginPatient(driver);
     }
 
+    // TC03 depends on TC02 only — sitemap timeout here will NOT skip TC04
     @Test(dependsOnMethods = "TC02_loginPatient",
-          description = "Open 3-4 random category pages from sitemap",
-          alwaysRun = false)
+          description = "Browse 3-4 random category pages from sitemap")
     public void TC03_browseSitemapCategories() throws Exception {
         NutridynFlow.browseRandomCategoriesFromSitemap(driver);
     }
 
+    // TC04 also depends on TC02 only — runs independently of TC03
     @Test(dependsOnMethods = "TC02_loginPatient",
-          description = "Add 2-3 random products from sitemap to cart",
-          alwaysRun = false)
+          description = "Add 2-3 random products from sitemap to cart")
     public void TC04_addSitemapProductsToCart() throws Exception {
         NutridynFlow.addRandomSitemapProductsToCart(driver);
     }
 
+    // TC05 depends on TC04 — needs products in cart before checkout
     @Test(dependsOnMethods = "TC04_addSitemapProductsToCart",
           description = "Open mini-cart and proceed to checkout")
     public void TC05_openCartAndCheckout() throws Exception {
         NutridynFlow.openCartAndCheckout(driver);
     }
 
-    @Test(dependsOnMethods = "TC05_openCartAndCheckout", description = "Return home via header logo")
+    @Test(dependsOnMethods = "TC05_openCartAndCheckout",
+          description = "Return home via header logo")
     public void TC06_goHomeAfterCheckout() throws Exception {
         NutridynFlow.goHomeViaHeaderLogoAfterCheckout(driver);
     }
 
     @Test(dependsOnMethods = "TC06_goHomeAfterCheckout",
-          description = "Account menu then home to reach practitioner login")
+          description = "Account menu then home — prep for practitioner login")
     public void TC07_openAccountThenHome() throws Exception {
         NutridynFlow.openAccountThenHomeForPractitionerLogin(driver);
     }
 
-    @Test(dependsOnMethods = "TC07_openAccountThenHome", description = "Log in as practitioner")
+    @Test(dependsOnMethods = "TC07_openAccountThenHome",
+          description = "Log in as practitioner")
     public void TC08_loginPractitioner() throws Exception {
         NutridynFlow.loginPractitioner(driver);
     }
