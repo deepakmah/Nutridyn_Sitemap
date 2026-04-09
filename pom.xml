@@ -9,7 +9,6 @@
 <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 </properties>
 <dependencies>
-<!--  Selenium  -->
 <dependency>
 <groupId>org.seleniumhq.selenium</groupId>
 <artifactId>selenium-java</artifactId>
@@ -20,14 +19,13 @@
 <artifactId>selenium-chrome-driver</artifactId>
 <version>4.32.0</version>
 </dependency>
-<!--  TestNG  -->
 <dependency>
 <groupId>org.testng</groupId>
 <artifactId>testng</artifactId>
 <version>7.10.2</version>
 <scope>test</scope>
 </dependency>
-<!--  Jakarta Mail — for sending HTML report emails  -->
+<!--  Jakarta Mail for sending HTML report emails  -->
 <dependency>
 <groupId>com.sun.mail</groupId>
 <artifactId>jakarta.mail</artifactId>
@@ -51,14 +49,13 @@
 <version>3.5.2</version>
 <configuration>
 <!-- 
-                        IMPORTANT: testFailureIgnore = true means Maven will NOT
-                        exit with code 1 when a test fails. This allows the
-                        AfterSuite email step to always run and the GitHub Actions
-                        workflow to always upload artifacts and mark the run correctly.
+                        TRUE = Maven exits 0 even when tests fail.
+                        This lets @AfterSuite always run and send the email,
+                        and lets GitHub Actions upload artifacts on failure.
                      -->
 <testFailureIgnore>true</testFailureIgnore>
+<!--  Run the compiled copy so all test classes are on the classpath  -->
 <suiteXmlFiles>
-<!--  Use the compiled copy so all test classes are on the classpath  -->
 <suiteXmlFile>${project.build.testOutputDirectory}/testng.xml</suiteXmlFile>
 </suiteXmlFiles>
 </configuration>
