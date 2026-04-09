@@ -1,5 +1,7 @@
 package nutridyn;
 
+import java.nio.file.Paths;
+
 /**
  * Central config. Sensitive values (emails, passwords) come from environment
  * variables so they are never hardcoded — works for both local runs and
@@ -11,13 +13,19 @@ public final class NutridynConfig {
 
     /**
      * Where screenshots, HTML reports, and CSV are saved.
-     * - GitHub Actions: uses RUNNER_TEMP (e.g. /tmp/nutridyn_output)
-     * - Local Windows:  falls back to the hardcoded path below
+     * - GitHub Actions: set {@code NUTRIDYN_OUTPUT_ROOT} in the workflow (e.g. {@code /tmp/nutridyn_output}).
+     * - Local: defaults to {@code ~/nutridyn-automation-output} (or {@code user.home} on any OS).
+     * Maven and {@code pom.xml} are unrelated to this path; they never read it.
      */
-    public static final String OUTPUT_ROOT = getEnvOrDefault(
-            "NUTRIDYN_OUTPUT_ROOT",
-            "C:/Users/deepa/Documents/Automation/Nutridyn"
-    );
+    public static final String OUTPUT_ROOT = resolveOutputRoot();
+
+    private static String resolveOutputRoot() {
+        String val = System.getenv("NUTRIDYN_OUTPUT_ROOT");
+        if (val != null && !val.trim().isEmpty()) {
+            return val.trim();
+        }
+        return Paths.get(System.getProperty("user.home", "."), "nutridyn-automation-output").toString();
+    }
 
     public static final String BASE_URL     = "https://nutridyn.com/";
     public static final String SITEMAP_URL  = "https://nutridyn.com/pub/media/sitemap.xml";
