@@ -26,24 +26,32 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2. Set up Java 21 (LTS — compatible with Java 24 source, change if needed)
+      # MUST run before setup-java: cache: maven triggers Maven and parses pom.xml first — a stub pom fails there with a confusing error.
+      - name: Show pom.xml from this commit (proves what GitHub checked out)
+        run: |
+          set -e
+          echo "=== Branch / ref: ${{ github.ref }} sha: ${{ github.sha }} ==="
+          test -f pom.xml || { echo "::error::No pom.xml at repo root"; ls -la; exit 1; }
+          echo "=== Line count and checksum ==="
+          wc -l pom.xml
+          sha256sum pom.xml || shasum -a 256 pom.xml
+          echo "=== Full pom.xml (entire file) ==="
+          cat pom.xml
+          echo "=== End pom.xml ==="
+          if grep -nE '^[[:space:]]*\.\.\.[[:space:]]*$' pom.xml; then
+            echo "::error::This pom.xml still has a placeholder line containing only '...' — not valid XML. Replace it on GitHub (Commit tab → edit pom.xml) or push from your PC."
+            exit 1
+          fi
+
+      # 2. Set up Java 21 (no Maven cache until pom is stable — avoids hidden mvn parse before verify)
       - name: Set up Java
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '21'
-          cache: maven
 
-      # Fail fast if the repo still has a stub pom (literal "..." line breaks Maven)
-      - name: Verify pom.xml is complete
-        run: |
-          echo "=== pom.xml first 25 lines (what the runner actually checked out) ==="
-          sed -n '1,25p' pom.xml
-          if grep -nE '^[[:space:]]*\.\.\.[[:space:]]*$' pom.xml; then
-            echo "::error::pom.xml contains a standalone '...' line — invalid XML. Push the real pom.xml from your machine (see repo root pom.xml)."
-            exit 1
-          fi
-          mvn -q validate -N
+      - name: Maven validate POM
+        run: mvn -q validate -N
 
       # 3. Install Google Chrome (latest stable)
       - name: Install Google Chrome
