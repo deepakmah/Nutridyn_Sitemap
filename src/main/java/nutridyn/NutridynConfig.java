@@ -1,9 +1,9 @@
 package nutridyn;
 
 /**
- * Central config. Sensitive values (emails, passwords) come from environment
- * variables so they are never hardcoded — works for both local runs and
- * GitHub Actions secrets.
+ * Central config. All paths and credentials read from environment variables.
+ * - GitHub Actions: secrets/variables injected by workflow
+ * - Local runs: falls back to hardcoded defaults below
  */
 public final class NutridynConfig {
 
@@ -11,31 +11,34 @@ public final class NutridynConfig {
 
     /**
      * Where screenshots, HTML reports, and CSV are saved.
-     * - GitHub Actions: uses RUNNER_TEMP (e.g. /tmp/nutridyn_output)
-     * - Local Windows:  falls back to the hardcoded path below
+     * GitHub Actions sets GITHUB_WORKSPACE automatically.
+     * We write into a "test-output" subfolder so artifacts can be uploaded.
      */
-    public static final String OUTPUT_ROOT = getEnvOrDefault(
-            "NUTRIDYN_OUTPUT_ROOT",
-            "C:/Users/deepa/Documents/Automation/Nutridyn"
-    );
+    public static final String OUTPUT_ROOT = buildOutputRoot();
 
-    public static final String BASE_URL     = "https://nutridyn.com/";
-    public static final String SITEMAP_URL  = "https://nutridyn.com/pub/media/sitemap.xml";
+    public static final String BASE_URL    = "https://nutridyn.com/";
+    public static final String SITEMAP_URL = "https://nutridyn.com/pub/media/sitemap.xml";
 
-    /**
-     * Test credentials — read from environment variables.
-     * Set these in GitHub Actions Secrets:
-     *   PATIENT_EMAIL, PATIENT_PASSWORD, PRACTITIONER_EMAIL, PRACTITIONER_PASSWORD
-     * For local runs, set them as system environment variables OR keep the fallback values below.
-     */
-    public static final String PATIENT_EMAIL          = getEnvOrDefault("PATIENT_EMAIL",          "gopal.exinentpatient@gmail.com");
-    public static final String PATIENT_PASSWORD       = getEnvOrDefault("PATIENT_PASSWORD",       "test@1234");
-    public static final String PRACTITIONER_EMAIL     = getEnvOrDefault("PRACTITIONER_EMAIL",     "foo.bar@getastra.live");
-    public static final String PRACTITIONER_PASSWORD  = getEnvOrDefault("PRACTITIONER_PASSWORD",  "123456");
+    // Credentials — read from GitHub Secrets, fall back to local defaults
+    public static final String PATIENT_EMAIL         = getEnv("PATIENT_EMAIL",         "gopal.exinentpatient@gmail.com");
+    public static final String PATIENT_PASSWORD      = getEnv("PATIENT_PASSWORD",      "test@1234");
+    public static final String PRACTITIONER_EMAIL    = getEnv("PRACTITIONER_EMAIL",    "foo.bar@getastra.live");
+    public static final String PRACTITIONER_PASSWORD = getEnv("PRACTITIONER_PASSWORD", "123456");
 
-    // ── Helper ───────────────────────────────────────────────────────────────
-    private static String getEnvOrDefault(String envKey, String defaultValue) {
-        String val = System.getenv(envKey);
-        return (val != null && !val.trim().isEmpty()) ? val.trim() : defaultValue;
+    // ── helpers ──────────────────────────────────────────────────────────────
+
+    private static String buildOutputRoot() {
+        // GitHub Actions sets GITHUB_WORKSPACE automatically (e.g. /home/runner/work/Repo/Repo)
+        String ws = System.getenv("GITHUB_WORKSPACE");
+        if (ws != null && !ws.trim().isEmpty()) {
+            return ws.trim() + "/test-output";
+        }
+        // Local Windows fallback
+        return "C:/Users/deepa/Documents/Automation/Nutridyn";
+    }
+
+    private static String getEnv(String key, String defaultVal) {
+        String v = System.getenv(key);
+        return (v != null && !v.trim().isEmpty()) ? v.trim() : defaultVal;
     }
 }
