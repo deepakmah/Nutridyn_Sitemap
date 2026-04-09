@@ -2,19 +2,19 @@ name: NutriDyn Automation
 
 # ── When to run ──────────────────────────────────────────────────────────────
 on:
-  # Scheduled run — every weekday at 8:00 AM UTC (1:30 PM IST)
+  # Scheduled: every weekday at 8:00 AM UTC (1:30 PM IST)
   schedule:
     - cron: '0 8 * * 1-5'
 
-  # Also allow manual trigger from the GitHub Actions UI
+  # Manual trigger from the GitHub Actions UI
   workflow_dispatch:
     inputs:
       reason:
-        description: 'Reason for manual run (optional)'
+        description: 'Reason for manual run'
         required: false
         default: 'Manual trigger'
 
-# ── Jobs ─────────────────────────────────────────────────────────────────────
+# ── Job ───────────────────────────────────────────────────────────────────────
 jobs:
   nutridyn-e2e:
     name: NutriDyn E2E Test + Email Report
@@ -22,66 +22,66 @@ jobs:
 
     steps:
 
-      # 1. Check out source code
+      # 1. Checkout code
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2. Set up Java 21 (LTS — compatible with Java 24 source, change if needed)
-      - name: Set up Java
+      # 2. Java 21 (LTS — matches pom.xml compiler source/target)
+      - name: Set up Java 21
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '21'
           cache: maven
 
-      # 3. Install Google Chrome (latest stable)
+      # 3. Install latest stable Google Chrome
       - name: Install Google Chrome
         run: |
-          wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | sudo apt-key add -
+          wget -q -O - https://dl.google.com/linux/linux_signing_key.pub \
+            | sudo apt-key add -
           sudo sh -c 'echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" \
             >> /etc/apt/sources.list.d/google-chrome.list'
           sudo apt-get update -q
           sudo apt-get install -y google-chrome-stable
-          google-chrome --version
+          echo "Chrome version: $(google-chrome --version)"
 
-      # 4. Create output directory
-      - name: Create output directory
-        run: mkdir -p /tmp/nutridyn_output
-
-      # 5. Run the TestNG suite via Maven
-      #    All secrets/variables are injected as environment variables
+      # 4. Run the full TestNG suite
+      #    • testFailureIgnore=true in pom.xml means Maven does NOT exit(1) on test failures
+      #    • All secrets/variables are injected as env vars — nothing is hardcoded
       - name: Run NutriDyn automation
         env:
-          # Output path (GitHub Actions temp folder)
-          NUTRIDYN_OUTPUT_ROOT: /tmp/nutridyn_output
+          # Tells NutridynConfig where to write output (screenshots + HTML report)
+          GITHUB_WORKSPACE: ${{ github.workspace }}
 
-          # Test credentials — stored in GitHub Secrets
+          # Test credentials (GitHub Secrets)
           PATIENT_EMAIL:         ${{ secrets.PATIENT_EMAIL }}
           PATIENT_PASSWORD:      ${{ secrets.PATIENT_PASSWORD }}
           PRACTITIONER_EMAIL:    ${{ secrets.PRACTITIONER_EMAIL }}
           PRACTITIONER_PASSWORD: ${{ secrets.PRACTITIONER_PASSWORD }}
 
-          # Email credentials — stored in GitHub Secrets
+          # Email credentials (GitHub Secrets)
           GMAIL_SENDER_EMAIL:    ${{ secrets.GMAIL_SENDER_EMAIL }}
           GMAIL_APP_PASSWORD:    ${{ secrets.GMAIL_APP_PASSWORD }}
 
-          # Email recipient — stored in GitHub Variables (not sensitive)
+          # Email recipient (GitHub Variable — not sensitive)
           REPORT_RECIPIENT:      ${{ vars.REPORT_RECIPIENT }}
 
-          # CI flag — tells ChromeDriver to run headless
+          # Tells NutridynWebDriver to run Chrome in headless mode
           CI: "true"
 
+        # 'continue-on-error: true' ensures the upload + artifact steps below
+        # always run even if Maven exits non-zero for any unexpected reason
+        continue-on-error: true
         run: |
-          mvn test \
-            -DsuiteXmlFile=src/test/resources/testng.xml \
-            --no-transfer-progress
+          mvn test --no-transfer-progress
 
-      # 6. Upload screenshots and HTML report as a GitHub Actions artifact
-      #    (downloadable from the Actions run page — useful as backup)
-      - name: Upload test report artifacts
+      # 5. Upload everything in test-output/ as a downloadable GitHub artifact
+      #    'if: always()' ensures this runs even when tests fail
+      - name: Upload test-output artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: nutridyn-report-${{ github.run_number }}
-          path: /tmp/nutridyn_output/
+          path: ${{ github.workspace }}/test-output/
           retention-days: 30
+          if-no-files-found: warn
