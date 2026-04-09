@@ -3,7 +3,8 @@ package nutridyn;
 import org.openqa.selenium.WebDriver;
 
 /**
- * Optional entry point without Maven TestNG: run this main from your IDE if you prefer not to use {@code mvn test}.
+ * Entry point for both local runs and GitHub Actions.
+ * After the E2E flow completes, it emails the HTML report.
  */
 public final class NutridynLauncher {
 
@@ -15,5 +16,19 @@ public final class NutridynLauncher {
         } finally {
             driver.quit();
         }
+
+        // Build path to the HTML report written during this run
+        String htmlReport = NutridynConfig.OUTPUT_ROOT
+                + "/html/" + NutridynReporting.RUN_DATE
+                + "/" + NutridynReporting.RUN_TIME
+                + "/TestReport.html";
+
+        // Send email — credentials come from environment variables
+        NutridynEmailer.sendReport(
+                htmlReport,
+                NutridynReporting.passedSteps,
+                NutridynReporting.failedSteps,
+                NutridynReporting.totalSteps
+        );
     }
 }
