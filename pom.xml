@@ -27,7 +27,7 @@
 <version>7.10.2</version>
 <scope>test</scope>
 </dependency>
-<!--  Jakarta Mail (JavaMail) — for sending HTML report emails  -->
+<!--  Jakarta Mail — for sending HTML report emails  -->
 <dependency>
 <groupId>com.sun.mail</groupId>
 <artifactId>jakarta.mail</artifactId>
@@ -50,8 +50,16 @@
 <artifactId>maven-surefire-plugin</artifactId>
 <version>3.5.2</version>
 <configuration>
+<!-- 
+                        IMPORTANT: testFailureIgnore = true means Maven will NOT
+                        exit with code 1 when a test fails. This allows the
+                        AfterSuite email step to always run and the GitHub Actions
+                        workflow to always upload artifacts and mark the run correctly.
+                     -->
+<testFailureIgnore>true</testFailureIgnore>
 <suiteXmlFiles>
-<suiteXmlFile>${project.basedir}/src/test/resources/testng.xml</suiteXmlFile>
+<!--  Use the compiled copy so all test classes are on the classpath  -->
+<suiteXmlFile>${project.build.testOutputDirectory}/testng.xml</suiteXmlFile>
 </suiteXmlFiles>
 </configuration>
 </plugin>
